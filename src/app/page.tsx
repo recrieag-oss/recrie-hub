@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 
@@ -63,6 +64,15 @@ const MODULES = [
 
 export default function HomePage() {
   const router = useRouter()
+  const [seeding, setSeeding] = useState(false)
+  const [seedDone, setSeedDone] = useState(false)
+
+  async function seedData() {
+    setSeeding(true)
+    const res = await fetch('/api/seed', { method: 'POST' })
+    if (res.ok) setSeedDone(true)
+    setSeeding(false)
+  }
 
   return (
     <div className="min-h-full bg-background">
@@ -96,6 +106,21 @@ export default function HomePage() {
             </button>
           ))}
         </div>
+
+        {!seedDone && (
+          <div className="mt-10 text-center">
+            <button onClick={seedData} disabled={seeding}
+              className="rounded-xl px-6 py-3 text-sm font-bold text-white bg-primary hover:bg-primary-hover disabled:opacity-50 transition-colors">
+              {seeding ? 'Importando...' : '📥 Importar dados (Financeiro, Agência, Propostas)'}
+            </button>
+            <p className="text-xs text-muted mt-2">Importa os dados existentes para o banco de dados</p>
+          </div>
+        )}
+        {seedDone && (
+          <div className="mt-10 text-center">
+            <p className="text-sm text-success font-medium">✅ Dados importados com sucesso! Navegue pelos módulos.</p>
+          </div>
+        )}
       </main>
     </div>
   )
