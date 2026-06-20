@@ -1,8 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import type { Proposal, Client } from '@/lib/propostas-store'
-import { fmtR, fmtDate } from '@/lib/propostas-store'
+import type { Proposal, Client } from '@/lib/db/propostas'
+import { fmtR } from '@/lib/db/propostas'
 
 interface ProposalPreviewProps {
   proposal: Proposal

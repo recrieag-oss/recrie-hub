@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Navbar from '@/components/layout/Navbar'
-import * as ps from '@/lib/propostas-store'
+import * as ps from '@/lib/db/propostas'
 import ProposalPreview from '@/components/propostas/ProposalPreview'
 
 type Tab = 'dashboard' | 'clientes' | 'propostas'
@@ -16,16 +16,22 @@ export default function PropostasPage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [ver, setVer] = useState(0)
+  const [stats, setStats] = useState({ negotiationCount: 0, negotiationTotal: 0, approvedCount: 0, approvedTotal: 0, totalProposals: 0, totalClients: 0 })
+  const [proposals, setProposals] = useState<ps.Proposal[]>([])
+  const [clients, setClients] = useState<ps.Client[]>([])
+  const [activities, setActivities] = useState<ps.Activity[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const stats = ps.getStats()
-  const proposals = ps.getProposals()
-  const clients = ps.getClients()
-  const activities = ps.getActivities()
+  const loadAll = useCallback(async () => {
+    const [s, p, c, a] = await Promise.all([ps.getStats(), ps.getProposals(), ps.getClients(), ps.getActivities()])
+    setStats(s); setProposals(p); setClients(c); setActivities(a); setLoading(false)
+  }, [])
+
+  useEffect(() => { loadAll() }, [loadAll, ver])
 
   function reload() { setVer(v => v + 1) }
 
-  // Force re-render
-  useEffect(() => {}, [ver])
+  if (loading) return <div className="flex h-full items-center justify-center" style={{ background: C.bg }}><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
 
   return (
     <div className="min-h-full" style={{ background: C.bg, color: C.text }}>
@@ -132,7 +138,7 @@ export default function PropostasPage() {
                           <span className="text-sm font-bold" style={{ color: '#10b981' }}>{ps.fmtR(p.total)}</span>
                           <button onClick={() => setPreviewId(p.id)} className="p-1 rounded hover:bg-white/5" style={{ color: C.blue }} title="Visualizar / PDF">📄</button>
                           <button onClick={() => { setEditId(p.id); setModal('proposal') }} className="p-1 rounded hover:bg-white/5" style={{ color: C.muted }}>✎</button>
-                          <button onClick={() => { if (confirm('Excluir?')) { ps.deleteProposal(p.id); reload() } }} className="p-1 rounded hover:bg-white/5" style={{ color: '#f87171' }}>🗑</button>
+                          <button onClick={() => { if (confirm('Excluir?')) { ps.deleteProposal(p.id).then(reload) } }} className="p-1 rounded hover:bg-white/5" style={{ color: '#f87171' }}>🗑</button>
                         </div>
                       </div>
                     )
@@ -189,7 +195,7 @@ export default function PropostasPage() {
                         <td className="py-3 px-4 text-center">
                           <button onClick={() => setPreviewId(p.id)} className="px-1 hover:text-white" style={{ color: C.blue }} title="PDF">📄</button>
                           <button onClick={() => { setEditId(p.id); setModal('proposal') }} className="px-1 hover:text-white" style={{ color: C.muted }}>✎</button>
-                          <button onClick={() => { if (confirm('Excluir?')) { ps.deleteProposal(p.id); reload() } }} className="px-1" style={{ color: '#f87171' }}>×</button>
+                          <button onClick={() => { if (confirm('Excluir?')) { ps.deleteProposal(p.id).then(reload) } }} className="px-1" style={{ color: '#f87171' }}>×</button>
                         </td>
                       </tr>
                     )
@@ -261,7 +267,7 @@ export default function PropostasPage() {
                       <td className="py-3 px-4 text-sm" style={{ color: C.muted }}>{ps.fmtDate(c.created_at)}</td>
                       <td className="py-3 px-4 text-center">
                         <button onClick={() => { setEditId(c.id); setModal('client') }} className="px-1 hover:text-white" style={{ color: C.muted }}>✎</button>
-                        <button onClick={() => { if (confirm('Excluir?')) { ps.deleteClient(c.id); reload() } }} className="px-1" style={{ color: '#f87171' }}>🗑</button>
+                        <button onClick={() => { if (confirm('Excluir?')) { ps.deleteClient(c.id).then(reload) } }} className="px-1" style={{ color: '#f87171' }}>🗑</button>
                       </td>
                     </tr>
                   ))}
@@ -274,32 +280,32 @@ export default function PropostasPage() {
       </main>
 
       {/* Client Modal */}
-      {modal === 'client' && <ClientModal editId={editId} onClose={() => setModal(null)} onSave={reload} />}
+      {modal === 'client' && <ClientModal editId={editId} clients={clients} onClose={() => setModal(null)} onSave={reload} />}
       {/* Proposal Modal */}
-      {modal === 'proposal' && <ProposalModal editId={editId} onClose={() => setModal(null)} onSave={reload} />}
+      {modal === 'proposal' && <ProposalModal editId={editId} proposals={proposals} clients={clients} onClose={() => setModal(null)} onSave={reload} />}
       {/* Proposal Preview */}
       {previewId && (() => {
-        const p = ps.getProposal(previewId)
+        const p = proposals.find(pr => pr.id === previewId)
         if (!p) return null
-        const c = p.client_id ? ps.getClient(p.client_id) : null
+        const c = p.client_id ? clients.find(cl => cl.id === p.client_id) || null : null
         return <ProposalPreview proposal={p} client={c} onClose={() => setPreviewId(null)} />
       })()}
     </div>
   )
 }
 
-function ClientModal({ editId, onClose, onSave }: { editId: string | null; onClose: () => void; onSave: () => void }) {
-  const existing = editId ? ps.getClient(editId) : null
+function ClientModal({ editId, clients: allClients, onClose, onSave }: { editId: string | null; clients: ps.Client[]; onClose: () => void; onSave: () => void }) {
+  const existing = editId ? allClients.find(c => c.id === editId) || null : null
   const [name, setName] = useState(existing?.name || '')
   const [contact, setContact] = useState(existing?.contact || '')
   const [email, setEmail] = useState(existing?.email || '')
   const [type, setType] = useState<ps.ClientType>(existing?.type || 'pf')
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    if (editId) ps.updateClient(editId, { name, contact, email, type })
-    else ps.createClient({ name, contact, email, type })
+    if (editId) await ps.updateClient(editId, { name, contact, email, type })
+    else await ps.createClient({ name, contact, email, type })
     onSave(); onClose()
   }
 
@@ -325,9 +331,8 @@ function ClientModal({ editId, onClose, onSave }: { editId: string | null; onClo
   )
 }
 
-function ProposalModal({ editId, onClose, onSave }: { editId: string | null; onClose: () => void; onSave: () => void }) {
-  const existing = editId ? ps.getProposal(editId) : null
-  const clients = ps.getClients()
+function ProposalModal({ editId, proposals: allProposals, clients: allClients, onClose, onSave }: { editId: string | null; proposals: ps.Proposal[]; clients: ps.Client[]; onClose: () => void; onSave: () => void }) {
+  const existing = editId ? allProposals.find(p => p.id === editId) || null : null
   const [clientId, setClientId] = useState(existing?.client_id || '')
   const [title, setTitle] = useState(existing?.title || '')
   const [status, setStatus] = useState<ps.ProposalStatus>(existing?.status || 'rascunho')
@@ -348,12 +353,12 @@ function ProposalModal({ editId, onClose, onSave }: { editId: string | null; onC
 
   const total = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
-    const data = { client_id: clientId, title, description: '', items, status, total }
-    if (editId) ps.updateProposal(editId, data)
-    else ps.createProposal(data)
+    const data = { client_id: clientId || null, title, description: '', items, status, total }
+    if (editId) await ps.updateProposal(editId, data)
+    else await ps.createProposal(data)
     onSave(); onClose()
   }
 
@@ -368,7 +373,7 @@ function ProposalModal({ editId, onClose, onSave }: { editId: string | null; onC
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da proposta" required className={inputCls} style={{ background: '#0a0a0f', border: `1px solid ${C.border}` }} />
           <select value={clientId} onChange={e => setClientId(e.target.value)} className={inputCls} style={{ background: '#0a0a0f', border: `1px solid ${C.border}` }}>
             <option value="">Selecionar cliente</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {allClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
 
