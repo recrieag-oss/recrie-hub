@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+:root {
+  --background: #07090c;
+  --foreground: #e2e8f0;
+  --sidebar-bg: #0d1117;
+  --sidebar-text: #e2e8f0;
+  --card-bg: #111827;
+  --list-bg: #0d1117;
+  --border: #1e293b;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --danger: #f87171;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --muted: #64748b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-card-bg: var(--card-bg);
+  --color-list-bg: var(--list-bg);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Scrollbar for kanban */
+.kanban-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.kanban-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-scroll::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+.list-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.list-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* Dark theme inputs */
+input, textarea, select {
+  color: var(--foreground);
+}
