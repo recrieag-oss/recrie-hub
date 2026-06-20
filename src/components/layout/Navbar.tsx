@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import GlobalSearch from './GlobalSearch'
+import { getSupabase } from '@/lib/supabase/hooks'
 
 const MODULES = [
   { href: '/dashboard', label: 'Kanban', match: ['/dashboard', '/kanban'] },
@@ -57,6 +58,13 @@ export default function Navbar() {
               </svg>
               <span className="hidden sm:inline">Buscar</span>
               <kbd className="hidden sm:inline rounded px-1 py-0.5 text-[10px]" style={{ border: '1px solid #1e293b' }}>Ctrl+K</kbd>
+            </button>
+            <button
+              onClick={async () => { await getSupabase().auth.signOut(); router.push('/login') }}
+              className="rounded-lg px-3 py-1.5 text-xs transition-colors hover:bg-white/5"
+              style={{ color: '#64748b' }}
+            >
+              Sair
             </button>
           </div>
         </div>
