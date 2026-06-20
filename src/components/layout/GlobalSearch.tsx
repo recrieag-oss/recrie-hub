@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import * as store from '@/lib/store'
-import type { SearchResult } from '@/lib/store'
+import * as store from '@/lib/db/kanban'
+import type { SearchResult } from '@/lib/db/kanban'
 
 export default function GlobalSearch() {
   const [open, setOpen] = useState(false)
@@ -27,7 +27,7 @@ export default function GlobalSearch() {
   }, [open])
 
   useEffect(() => {
-    const timer = setTimeout(() => setResults(store.searchCards(query)), 150)
+    const timer = setTimeout(() => { store.searchCards(query).then(setResults) }, 150)
     return () => clearTimeout(timer)
   }, [query])
 

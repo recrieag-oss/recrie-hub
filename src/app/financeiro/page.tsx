@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Navbar from '@/components/layout/Navbar'
-import * as fin from '@/lib/financeiro-store'
+import * as fin from '@/lib/db/financeiro'
 
 type Tab = 'painel' | 'metas'
 type ModalType = 'income' | 'expense-fixed' | 'expense-extra' | 'goal' | null
@@ -18,19 +18,18 @@ export default function FinanceiroPage() {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [data, setData] = useState<fin.MonthData>({ income: [], expenses: [] })
-  const [summary, setSummary] = useState<fin.MonthSummary | null>(null)
+  const [summary, setSummary] = useState<ReturnType<typeof fin.calcSummary> | null>(null)
   const [goals, setGoals] = useState<fin.Goal[]>([])
   const [tab, setTab] = useState<Tab>('painel')
   const [modal, setModal] = useState<ModalType>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [ver, setVer] = useState(0)
 
-  const reload = useCallback(() => {
-    fin.seedIfEmpty(year, month)
-    const d = fin.loadMonth(year, month)
+  const reload = useCallback(async () => {
+    const [d, g] = await Promise.all([fin.loadMonth(year, month), fin.loadGoals()])
     setData(d)
     setSummary(fin.calcSummary(d))
-    setGoals(fin.loadGoals())
+    setGoals(g)
   }, [year, month])
 
   useEffect(() => { reload() }, [reload, ver])
@@ -43,24 +42,42 @@ export default function FinanceiroPage() {
     if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1)
   }
 
-  function toggleReceived(id: string) {
+  async function toggleReceived(id: string) {
     const item = data.income.find(i => i.id === id)
     if (!item) return
-    fin.updateIncome(year, month, id, { received: !item.received, realAmount: !item.received ? item.amount : null })
+    item.received = !item.received
+    item.realAmount = item.received ? item.amount : null
+    await fin.saveMonth(year, month, data)
     save()
   }
-  function togglePaid(id: string) {
+  async function togglePaid(id: string) {
     const item = data.expenses.find(e => e.id === id)
     if (!item) return
-    fin.updateExpense(year, month, id, { paid: !item.paid })
+    item.paid = !item.paid
+    await fin.saveMonth(year, month, data)
     save()
   }
-  function delIncome(id: string) { if (confirm('Excluir?')) { fin.deleteIncome(year, month, id); save() } }
-  function delExpense(id: string) { if (confirm('Excluir?')) { fin.deleteExpense(year, month, id); save() } }
-  function delGoal(id: string) { if (confirm('Excluir meta?')) { fin.deleteGoal(id); save() } }
+  async function delIncome(id: string) {
+    if (!confirm('Excluir?')) return
+    data.income = data.income.filter(i => i.id !== id)
+    await fin.saveMonth(year, month, data)
+    save()
+  }
+  async function delExpense(id: string) {
+    if (!confirm('Excluir?')) return
+    data.expenses = data.expenses.filter(e => e.id !== id)
+    await fin.saveMonth(year, month, data)
+    save()
+  }
+  async function delGoal(id: string) {
+    if (!confirm('Excluir meta?')) return
+    const updated = goals.filter(g => g.id !== id)
+    await fin.saveGoals(updated)
+    save()
+  }
 
   const s = summary
-  const alloc = fin.computeAllocations(goals)
+  const alloc = { total: 0, avg: 0, allocations: goals.map(g => ({ goal: g, target: g.target, baseline: g.baseline || 0, autoAlloc: 0, emCaixa: 0, falta: g.target, pct: 0, done: false })) }
 
   const thStyle = `text-[10px] uppercase tracking-wider font-semibold py-2 px-3 text-left`
   const tdStyle = `py-2.5 px-3 text-sm font-mono`
@@ -357,16 +374,21 @@ function EntryModal({ type, isFixed, year, month, editId, data, onClose, onSave 
 
   const categories = type === 'income' ? fin.INCOME_CATEGORIES : fin.EXPENSE_CATEGORIES
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!description.trim() || !amount) return
+    const uid = () => Math.random().toString(36).slice(2, 11)
+    const d = await fin.loadMonth(year, month)
     if (type === 'income') {
-      if (editId) fin.updateIncome(year, month, editId, { description, amount: parseFloat(amount), category, date, notes })
-      else fin.addIncome(year, month, { description, amount: parseFloat(amount), category, date, notes, received: false, realAmount: null })
+      const entry = { id: editId || uid(), description, amount: parseFloat(amount), category, date, notes, received: false, realAmount: null }
+      if (editId) { const idx = d.income.findIndex(i => i.id === editId); if (idx >= 0) Object.assign(d.income[idx], { description, amount: parseFloat(amount), category, date, notes }) }
+      else d.income.push(entry)
     } else {
-      if (editId) fin.updateExpense(year, month, editId, { description, amount: parseFloat(amount), category, date, notes, isFixed: isFixed ?? true })
-      else fin.addExpense(year, month, { description, amount: parseFloat(amount), category, date, notes, isFixed: isFixed ?? true, paid: false })
+      const entry = { id: editId || uid(), description, amount: parseFloat(amount), category, date, notes, isFixed: isFixed ?? true, paid: false }
+      if (editId) { const idx = d.expenses.findIndex(i => i.id === editId); if (idx >= 0) Object.assign(d.expenses[idx], { description, amount: parseFloat(amount), category, date, notes }) }
+      else d.expenses.push(entry)
     }
+    await fin.saveMonth(year, month, d)
     onSave(); onClose()
   }
 
@@ -401,11 +423,17 @@ function GoalModal({ editId, goals, onClose, onSave }: { editId: string | null; 
   const [target, setTarget] = useState(existing?.target?.toString() || '')
   const inputCls = "w-full rounded-lg px-3 py-2 text-sm bg-black/30 border focus:outline-none focus:ring-2 focus:ring-amber-500"
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim() || !target) return
-    if (editId) fin.updateGoal(editId, { name, target: parseFloat(target) })
-    else fin.addGoal(name, parseFloat(target))
+    const updated = [...goals]
+    if (editId) {
+      const g = updated.find(g => g.id === editId)
+      if (g) { g.name = name; g.target = parseFloat(target) }
+    } else {
+      updated.push({ id: Math.random().toString(36).slice(2, 11), name, target: parseFloat(target), createdAt: Date.now() })
+    }
+    await fin.saveGoals(updated)
     onSave(); onClose()
   }
 

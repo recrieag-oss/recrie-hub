@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Card, Label } from '@/lib/types'
-import * as store from '@/lib/store'
+import * as store from '@/lib/db/kanban'
 
 interface CardModalProps {
   card: Card
@@ -28,7 +28,7 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setAllLabels(store.getLabels(boardId))
+    store.getLabels(boardId).then(setAllLabels)
   }, [boardId])
 
   useEffect(() => {
@@ -42,8 +42,8 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
     return () => document.removeEventListener('keydown', handleEsc)
   }, [onClose, showLabelPicker])
 
-  function handleSave() {
-    const updated = store.updateCard(card.id, {
+  async function handleSave() {
+    const updated = await store.updateCard(card.id, {
       title: title.trim() || card.title,
       description: description.trim() || null,
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
@@ -56,9 +56,9 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
     onClose()
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!confirm('Tem certeza que deseja excluir este card?')) return
-    store.deleteCard(card.id)
+    await store.deleteCard(card.id)
     onDelete(card.id)
     onClose()
   }
@@ -85,10 +85,11 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
     )
   }
 
-  function addNewLabel(e: React.FormEvent) {
+  async function addNewLabel(e: React.FormEvent) {
     e.preventDefault()
     if (!newLabelName.trim()) return
-    const label = store.createLabel(boardId, newLabelName.trim(), newLabelColor)
+    const label = await store.createLabel(boardId, newLabelName.trim(), newLabelColor)
+    if (!label) return
     setAllLabels(prev => [...prev, label])
     setSelectedLabelIds(prev => [...prev, label.id])
     setNewLabelName('')
@@ -373,8 +374,8 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
             </button>
 
             <button
-              onClick={() => {
-                const updated = store.updateCard(card.id, { archived: true })
+              onClick={async () => {
+                const updated = await store.updateCard(card.id, { archived: true })
                 if (updated) { onDelete(card.id); onClose() }
               }}
               className="flex w-full items-center gap-2 rounded-lg bg-list-bg px-3 py-2 text-sm hover:bg-border transition-colors"

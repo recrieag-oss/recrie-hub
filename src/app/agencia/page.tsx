@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Navbar from '@/components/layout/Navbar'
-import * as ag from '@/lib/agencia-store'
+import * as ag from '@/lib/db/agencia'
 
 type Tab = 'referencias' | 'prompts'
 type Modal = 'edit-prompt' | 'edit-ref' | null
@@ -24,9 +24,8 @@ export default function AgenciaPage() {
   const [ver, setVer] = useState(0)
 
   useEffect(() => {
-    setCategories(ag.getCategories())
-    setReferences(ag.getAllReferences())
-    setPrompts(ag.getPrompts())
+    Promise.all([ag.getCategories(), ag.getAllReferences(), ag.getPrompts()])
+      .then(([c, r, p]) => { setCategories(c); setReferences(r); setPrompts(p) })
   }, [ver])
 
   function reload() { setVer(v => v + 1) }
@@ -52,8 +51,8 @@ export default function AgenciaPage() {
     return id ? categories.find(c => c.id === id) : null
   }
 
-  function delPrompt(id: string) { if (confirm('Excluir este prompt?')) { ag.deletePrompt(id); reload() } }
-  function delRef(id: string) { if (confirm('Excluir esta referência?')) { ag.deleteReference(id); setSelectedRef(null); reload() } }
+  function delPrompt(id: string) { if (confirm('Excluir este prompt?')) { ag.deletePrompt(id).then(reload) } }
+  function delRef(id: string) { if (confirm('Excluir esta referência?')) { ag.deleteReference(id).then(() => { setSelectedRef(null); reload() }) } }
 
   return (
     <div className="min-h-full" style={{ background: C.bg, color: C.text }}>
@@ -132,7 +131,7 @@ export default function AgenciaPage() {
                         </span>
                       )}
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={e => { e.stopPropagation(); ag.toggleFavoriteRef(ref.id); reload() }}
+                        <button onClick={e => { e.stopPropagation(); ag.toggleFavoriteRef(ref.id, ref.is_favorite).then(reload) }}
                           className="p-1 rounded-full" style={{ background: '#00000066' }}>
                           <svg className="h-4 w-4" fill={ref.is_favorite ? '#f59e0b' : 'none'} viewBox="0 0 24 24" stroke={ref.is_favorite ? '#f59e0b' : '#fff'} strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -159,7 +158,7 @@ export default function AgenciaPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <h4 className="text-sm font-bold" style={{ color: C.pink }}>{p.title}</h4>
-                    <button onClick={() => { ag.toggleFavoritePrompt(p.id); reload() }}>
+                    <button onClick={() => { ag.toggleFavoritePrompt(p.id, p.is_favorite).then(reload) }}>
                       <svg className="h-4 w-4" fill={p.is_favorite ? '#f59e0b' : 'none'} viewBox="0 0 24 24" stroke={p.is_favorite ? '#f59e0b' : C.muted} strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                       </svg>
@@ -286,13 +285,13 @@ function PromptModal({ editId, prompts, categories, onClose, onSave }: {
   const [content, setContent] = useState(existing?.content || '')
   const [categoryId, setCategoryId] = useState(existing?.category_id || '')
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !content.trim()) return
     if (editId && existing) {
-      ag.updatePrompt(editId, { title, content, category_id: categoryId || null })
+      await ag.updatePrompt(editId, { title, content, category_id: categoryId || null })
     } else {
-      ag.createPrompt({ title, content, category_id: categoryId || null, tags: null })
+      await ag.createPrompt({ title, content, category_id: categoryId || null, tags: null })
     }
     onSave(); onClose()
   }
@@ -346,13 +345,13 @@ function ReferenceModal({ editId, references, categories, onClose, onSave }: {
     e.target.value = ''
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
     if (editId && existing) {
-      ag.updateReference(editId, { title, description: description || null, image_url: imageUrl, thumbnail_url: imageUrl, category_id: categoryId || null })
+      await ag.updateReference(editId, { title, description: description || null, image_url: imageUrl, thumbnail_url: imageUrl, category_id: categoryId || null })
     } else {
-      ag.createReference({ title, description: description || null, image_url: imageUrl, thumbnail_url: imageUrl, category_id: categoryId || null, tags: null })
+      await ag.createReference({ title, description: description || null, image_url: imageUrl, thumbnail_url: imageUrl, category_id: categoryId || null, tags: null })
     }
     onSave(); onClose()
   }

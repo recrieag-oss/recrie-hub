@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import type { Board, List, Card, Label } from '@/lib/types'
-import * as store from '@/lib/store'
+import * as store from '@/lib/db/kanban'
 import KanbanList from '@/components/board/KanbanList'
 import CardItem from '@/components/board/CardItem'
 import CardModal from '@/components/board/CardModal'
@@ -41,38 +41,36 @@ export default function BoardPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   )
 
-  const loadBoard = useCallback(() => {
-    const boardData = store.getBoard(boardId)
+  const loadBoard = useCallback(async () => {
+    const boardData = await store.getBoard(boardId)
     if (!boardData) { router.push('/dashboard'); return }
     setBoard(boardData)
 
-    const boardLists = store.getLists(boardId)
+    const boardLists = await store.getLists(boardId)
     setLists(boardLists)
 
     const grouped: Record<string, Card[]> = {}
-    boardLists.forEach(l => { grouped[l.id] = store.getCards(l.id) })
+    await Promise.all(boardLists.map(async l => { grouped[l.id] = await store.getCards(l.id) }))
     setCardsByList(grouped)
 
-    setLabels(store.getLabels(boardId))
+    setLabels(await store.getLabels(boardId))
     setLoading(false)
   }, [boardId, router])
 
-  useEffect(() => {
-    loadBoard()
-    return store.subscribe(loadBoard)
-  }, [loadBoard])
+  useEffect(() => { loadBoard() }, [loadBoard])
 
   const filteredCards = useMemo(() => applyFilters(cardsByList, filters), [cardsByList, filters])
 
-  function addCard(listId: string, title: string) {
-    const card = store.createCard(listId, title)
-    setCardsByList(prev => ({ ...prev, [listId]: [...(prev[listId] || []), card] }))
+  async function addCard(listId: string, title: string) {
+    const card = await store.createCard(listId, title)
+    if (card) setCardsByList(prev => ({ ...prev, [listId]: [...(prev[listId] || []), card] }))
   }
 
-  function addList(e: React.FormEvent) {
+  async function addList(e: React.FormEvent) {
     e.preventDefault()
     if (!newListName.trim()) return
-    const list = store.createList(boardId, newListName.trim())
+    const list = await store.createList(boardId, newListName.trim())
+    if (!list) return
     setLists(prev => [...prev, list])
     setCardsByList(prev => ({ ...prev, [list.id]: [] }))
     setNewListName('')
@@ -154,7 +152,7 @@ export default function BoardPage() {
       const listCards = prev[updatedCard.list_id] || []
       return { ...prev, [updatedCard.list_id]: listCards.map(c => c.id === updatedCard.id ? updatedCard : c) }
     })
-    setLabels(store.getLabels(boardId))
+    store.getLabels(boardId).then(setLabels)
   }
 
   function handleCardDelete(cardId: string) {

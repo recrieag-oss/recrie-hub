@@ -2,8 +2,16 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import * as store from '@/lib/store'
-import type { PlannerCard } from '@/lib/store'
+import * as kanban from '@/lib/db/kanban'
+
+interface PlannerCard {
+  card: kanban.Card
+  boardId: string
+  boardName: string
+  boardColor: string
+  listName: string
+  labels: kanban.Label[]
+}
 import Navbar from '@/components/layout/Navbar'
 
 function getDaysInMonth(year: number, month: number) {
@@ -29,13 +37,31 @@ export default function PlannerPage() {
   const [cards, setCards] = useState<PlannerCard[]>([])
   const [view, setView] = useState<'calendar' | 'list'>('calendar')
 
-  const loadCards = useCallback(() => {
-    setCards(store.getCardsWithDueDate())
+  const loadCards = useCallback(async () => {
+    const workspaces = await kanban.getWorkspaces()
+    const results: PlannerCard[] = []
+    for (const ws of workspaces) {
+      const boards = await kanban.getBoards(ws.id)
+      for (const board of boards) {
+        const lists = await kanban.getLists(board.id)
+        const labels = await kanban.getLabels(board.id)
+        for (const list of lists) {
+          const cards = await kanban.getCards(list.id)
+          for (const card of cards) {
+            if (card.due_date) {
+              results.push({ card, boardId: board.id, boardName: board.name, boardColor: board.color, listName: list.name, labels: labels.filter(l => card.label_ids?.includes(l.id)) })
+            }
+          }
+        }
+      }
+    }
+    results.sort((a, b) => new Date(a.card.due_date!).getTime() - new Date(b.card.due_date!).getTime())
+    setCards(results)
   }, [])
 
   useEffect(() => {
     loadCards()
-    return store.subscribe(loadCards)
+    return
   }, [loadCards])
 
   function prevMonth() {
