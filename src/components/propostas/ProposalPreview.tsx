@@ -22,15 +22,16 @@ export default function ProposalPreview({ proposal, client, onClose }: ProposalP
 
     const filename = `proposta-${(client?.name || proposal.title).toLowerCase().replace(/\s+/g, '-')}.pdf`
 
-    html2pdf()
-      .set({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const gen = html2pdf() as any
+    gen.set({
         margin: 0,
         filename,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-      })
+      } as Record<string, unknown>)
       .from(contentRef.current)
       .save()
       .then(() => setGenerating(false))
