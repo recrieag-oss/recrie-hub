@@ -69,7 +69,7 @@ export default function CardItem({ card, labels = [], onClick }: CardItemProps) 
       <p className="text-sm font-medium leading-snug">{card.title}</p>
 
       <div className="mt-2 flex items-center gap-2.5 flex-wrap">
-        {card.due_date && (
+        {card.due_date ? (
           <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
             dueStatus === 'overdue' ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success'
           }`}>
@@ -77,6 +77,13 @@ export default function CardItem({ card, labels = [], onClick }: CardItemProps) 
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             {new Date(card.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-muted">
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {new Date(card.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
           </span>
         )}
         {card.description && (
