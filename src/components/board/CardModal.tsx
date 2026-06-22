@@ -147,8 +147,8 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
       <div className="w-full max-w-2xl rounded-xl bg-card-bg shadow-2xl">
         {/* Cover preview */}
         {coverUrl && (
-          <div className="h-40 overflow-hidden rounded-t-xl bg-list-bg">
-            <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+          <div className="overflow-hidden rounded-t-xl bg-black/30">
+            <img src={coverUrl} alt="" className="w-full object-contain max-h-64" />
           </div>
         )}
 
@@ -200,7 +200,7 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
               <input ref={coverInputRef} type="file" accept="image/*" onChange={handleCoverUpload} className="hidden" />
               {coverUrl ? (
                 <div className="relative rounded-lg overflow-hidden h-32" style={{ background: '#000' }}>
-                  <img src={coverUrl} alt="Capa" className="h-full w-full object-cover" />
+                  <img src={coverUrl} alt="Capa" className="w-full object-contain max-h-48" />
                   <div className="absolute bottom-2 right-2 flex gap-2">
                     <button type="button" onClick={() => coverInputRef.current?.click()}
                       className="rounded-lg px-2.5 py-1 text-[10px] font-semibold text-white" style={{ background: '#00000099' }}>

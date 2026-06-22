@@ -47,8 +47,8 @@ export default function CardItem({ card, labels = [], onClick }: CardItemProps) 
       className="group cursor-pointer rounded-lg border border-border bg-card-bg p-3 shadow-sm hover:shadow-md transition-shadow"
     >
       {card.cover_url && (
-        <div className="mb-2 -mx-3 -mt-3 h-32 overflow-hidden rounded-t-lg">
-          <img src={card.cover_url} alt="" className="h-full w-full object-cover" />
+        <div className="mb-2 -mx-3 -mt-3 overflow-hidden rounded-t-lg bg-black/20">
+          <img src={card.cover_url} alt="" className="w-full object-contain max-h-60" />
         </div>
       )}
 
