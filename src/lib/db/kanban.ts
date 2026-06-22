@@ -30,7 +30,17 @@ export async function renameWorkspace(id: string, name: string) {
 }
 
 export async function updateWorkspace(id: string, updates: { name?: string; color?: string; logo_url?: string | null }) {
-  await sb().from('workspaces').update(updates).eq('id', id)
+  const { error } = await sb().from('workspaces').update(updates).eq('id', id)
+  if (error) {
+    console.error('updateWorkspace error:', error.message)
+    if (error.message.includes('logo_url')) {
+      const { name, color } = updates
+      const fallback: Record<string, unknown> = {}
+      if (name) fallback.name = name
+      if (color) fallback.color = color
+      await sb().from('workspaces').update(fallback).eq('id', id)
+    }
+  }
 }
 
 export async function deleteWorkspace(id: string) {
