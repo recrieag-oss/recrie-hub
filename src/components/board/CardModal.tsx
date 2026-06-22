@@ -44,15 +44,23 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
   }, [onClose, showLabelPicker])
 
   async function handleSave() {
-    const updated = await store.updateCard(card.id, {
+    let parsedDueDate: string | null = null
+    if (dueDate) {
+      const d = new Date(dueDate)
+      if (!isNaN(d.getTime())) parsedDueDate = d.toISOString()
+    }
+
+    const updates: Record<string, unknown> = {
       title: title.trim() || card.title,
       description: description.trim() || null,
-      due_date: dueDate ? new Date(dueDate).toISOString() : null,
-      cover_url: coverUrl.trim() || null,
+      due_date: parsedDueDate,
+      cover_url: coverUrl || null,
       label_ids: selectedLabelIds,
       checklist,
       attachments,
-    })
+    }
+
+    const updated = await store.updateCard(card.id, updates as Partial<typeof card>)
     if (updated) onUpdate(updated)
     onClose()
   }
