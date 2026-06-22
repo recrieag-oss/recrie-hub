@@ -26,6 +26,7 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
   const [newLabelName, setNewLabelName] = useState('')
   const [newLabelColor, setNewLabelColor] = useState('#3b82f6')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     store.getLabels(boardId).then(setAllLabels)
@@ -93,6 +94,15 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
     setAllLabels(prev => [...prev, label])
     setSelectedLabelIds(prev => [...prev, label.id])
     setNewLabelName('')
+  }
+
+  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setCoverUrl(reader.result as string)
+    reader.readAsDataURL(file)
+    e.target.value = ''
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -184,16 +194,33 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
               />
             </div>
 
-            {/* Cover URL */}
+            {/* Cover Upload */}
             <div>
-              <label className="block text-xs font-medium text-muted mb-1">URL da capa</label>
-              <input
-                type="url"
-                value={coverUrl}
-                onChange={(e) => setCoverUrl(e.target.value)}
-                placeholder="https://exemplo.com/imagem.jpg"
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+              <label className="block text-xs font-medium text-muted mb-1">Capa</label>
+              <input ref={coverInputRef} type="file" accept="image/*" onChange={handleCoverUpload} className="hidden" />
+              {coverUrl ? (
+                <div className="relative rounded-lg overflow-hidden h-32" style={{ background: '#000' }}>
+                  <img src={coverUrl} alt="Capa" className="h-full w-full object-cover" />
+                  <div className="absolute bottom-2 right-2 flex gap-2">
+                    <button type="button" onClick={() => coverInputRef.current?.click()}
+                      className="rounded-lg px-2.5 py-1 text-[10px] font-semibold text-white" style={{ background: '#00000099' }}>
+                      Trocar
+                    </button>
+                    <button type="button" onClick={() => setCoverUrl('')}
+                      className="rounded-lg px-2.5 py-1 text-[10px] font-semibold" style={{ background: '#00000099', color: '#f87171' }}>
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => coverInputRef.current?.click()}
+                  className="w-full rounded-lg py-6 text-center border-2 border-dashed border-border text-muted hover:border-primary hover:text-primary transition-colors">
+                  <svg className="h-6 w-6 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-xs font-medium">Upload de capa</p>
+                </button>
+              )}
             </div>
 
             {/* Description */}
