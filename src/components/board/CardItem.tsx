@@ -8,6 +8,8 @@ interface CardItemProps {
   card: Card
   labels?: Label[]
   onClick: () => void
+  onAdvance?: () => void
+  isLastList?: boolean
 }
 
 function getDueDateStatus(dueDate: string | null): 'ok' | 'overdue' | 'none' {
@@ -15,7 +17,7 @@ function getDueDateStatus(dueDate: string | null): 'ok' | 'overdue' | 'none' {
   return new Date(dueDate) < new Date() ? 'overdue' : 'ok'
 }
 
-export default function CardItem({ card, labels = [], onClick }: CardItemProps) {
+export default function CardItem({ card, labels = [], onClick, onAdvance, isLastList }: CardItemProps) {
   const {
     attributes,
     listeners,
@@ -108,6 +110,16 @@ export default function CardItem({ card, labels = [], onClick }: CardItemProps) 
             </svg>
             {attachCount}
           </span>
+        )}
+        {/* Advance button */}
+        {onAdvance && !isLastList && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAdvance() }}
+            className="ml-auto opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-primary/20 text-primary hover:bg-primary/40 transition-all"
+            title="Avançar etapa"
+          >
+            Avançar →
+          </button>
         )}
       </div>
     </div>

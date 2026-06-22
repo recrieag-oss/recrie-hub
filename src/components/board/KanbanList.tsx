@@ -10,11 +10,13 @@ interface KanbanListProps {
   list: List
   cards: Card[]
   labels: Label[]
+  isLastList?: boolean
   onAddCard: (listId: string, title: string) => void
   onCardClick: (card: Card) => void
+  onAdvanceCard?: (card: Card) => void
 }
 
-export default function KanbanList({ list, cards, labels, onAddCard, onCardClick }: KanbanListProps) {
+export default function KanbanList({ list, cards, labels, isLastList, onAddCard, onCardClick, onAdvanceCard }: KanbanListProps) {
   const [showAddCard, setShowAddCard] = useState(false)
   const [newCardTitle, setNewCardTitle] = useState('')
 
@@ -49,7 +51,7 @@ export default function KanbanList({ list, cards, labels, onAddCard, onCardClick
       >
         <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
-            <CardItem key={card.id} card={card} labels={labels} onClick={() => onCardClick(card)} />
+            <CardItem key={card.id} card={card} labels={labels} onClick={() => onCardClick(card)} isLastList={isLastList} onAdvance={onAdvanceCard ? () => onAdvanceCard(card) : undefined} />
           ))}
         </SortableContext>
       </div>

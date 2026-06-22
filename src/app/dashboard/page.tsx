@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Workspace, Board } from '@/lib/types'
 import * as store from '@/lib/db/kanban'
@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [showNewBoard, setShowNewBoard] = useState<string | null>(null)
   const [newBoardName, setNewBoardName] = useState('')
   const [renaming, setRenaming] = useState<{ type: 'workspace' | 'board'; id: string; name: string } | null>(null)
+  const [customizing, setCustomizing] = useState<string | null>(null)
 
   const [ver, setVer] = useState(0)
 
@@ -98,18 +99,22 @@ export default function DashboardPage() {
           {workspaces.map((workspace) => (
             <div key={workspace.id}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-6 w-6 rounded" style={{ backgroundColor: workspace.color }} />
+                {workspace.logo_url ? (
+                  <img src={workspace.logo_url} alt="" className="h-8 w-8 rounded object-contain" style={{ background: workspace.color }} />
+                ) : (
+                  <div className="h-6 w-6 rounded" style={{ backgroundColor: workspace.color }} />
+                )}
                 <h3 className="text-lg font-semibold">{workspace.name}</h3>
                 <DropdownMenu items={[
+                  {
+                    label: 'Personalizar',
+                    icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>,
+                    onClick: () => setCustomizing(workspace.id),
+                  },
                   {
                     label: 'Renomear',
                     icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
                     onClick: () => setRenaming({ type: 'workspace', id: workspace.id, name: workspace.name }),
-                  },
-                  {
-                    label: 'Duplicar',
-                    icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
-                    onClick: () => { /* TODO: duplicate */ },
                   },
                   {
                     label: 'Excluir',
@@ -198,6 +203,100 @@ export default function DashboardPage() {
           }}
         />
       )}
+
+      {customizing && (
+        <WorkspaceCustomizeModal
+          workspace={workspaces.find(w => w.id === customizing)!}
+          onClose={() => setCustomizing(null)}
+          onSave={reload}
+        />
+      )}
+    </div>
+  )
+}
+
+function WorkspaceCustomizeModal({ workspace, onClose, onSave }: { workspace: store.Workspace; onClose: () => void; onSave: () => void }) {
+  const [color, setColor] = useState(workspace.color)
+  const [logoUrl, setLogoUrl] = useState(workspace.logo_url || '')
+  const [name, setName] = useState(workspace.name)
+  const logoRef = React.useRef<HTMLInputElement>(null)
+
+  const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6', '#f97316', '#a855f7']
+
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const max = 200
+      let w = img.width, h = img.height
+      if (w > max || h > max) {
+        if (w > h) { h = Math.round(h * max / w); w = max } else { w = Math.round(w * max / h); h = max }
+      }
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+      setLogoUrl(canvas.toDataURL('image/png', 0.8))
+    }
+    img.src = URL.createObjectURL(file)
+    e.target.value = ''
+  }
+
+  async function handleSave() {
+    await store.updateWorkspace(workspace.id, { name, color, logo_url: logoUrl || null })
+    onSave(); onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-md rounded-xl p-6 space-y-5" style={{ background: '#111827', border: '1px solid #1e293b' }}>
+        <h3 className="text-lg font-bold">Personalizar Workspace</h3>
+
+        <div>
+          <label className="block text-xs font-medium text-muted mb-1">Nome</label>
+          <input value={name} onChange={e => setName(e.target.value)}
+            className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-muted mb-2">Cor</label>
+          <div className="flex flex-wrap gap-2">
+            {COLORS.map(c => (
+              <button key={c} onClick={() => setColor(c)}
+                className={`h-8 w-8 rounded-lg transition-all ${color === c ? 'ring-2 ring-offset-2 ring-offset-[#111827] ring-white scale-110' : 'hover:scale-105'}`}
+                style={{ backgroundColor: c }} />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-muted mb-2">Logo</label>
+          <input ref={logoRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: color }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
+              ) : (
+                <span className="text-2xl font-black text-white">{name.charAt(0)}</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => logoRef.current?.click()}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ border: '1px solid #1e293b' }}>
+                {logoUrl ? 'Trocar logo' : 'Upload logo'}
+              </button>
+              {logoUrl && (
+                <button onClick={() => setLogoUrl('')} className="text-xs text-danger">Remover</button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm" style={{ border: '1px solid #1e293b' }}>Cancelar</button>
+          <button onClick={handleSave} className="rounded-lg px-4 py-2 text-sm font-bold text-white" style={{ background: color }}>Salvar</button>
+        </div>
+      </div>
     </div>
   )
 }

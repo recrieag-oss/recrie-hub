@@ -10,6 +10,7 @@ export interface Workspace {
   name: string
   slug: string
   color: string
+  logo_url?: string | null
   owner_id: string
   created_at: string
 }

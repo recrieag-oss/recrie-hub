@@ -66,6 +66,17 @@ export default function BoardPage() {
     if (card) setCardsByList(prev => ({ ...prev, [listId]: [...(prev[listId] || []), card] }))
   }
 
+  async function advanceCard(card: Card, currentListIndex: number) {
+    const nextList = lists[currentListIndex + 1]
+    if (!nextList) return
+    await store.updateCard(card.id, { list_id: nextList.id, position: (cardsByList[nextList.id] || []).length } as Partial<Card>)
+    setCardsByList(prev => ({
+      ...prev,
+      [card.list_id]: (prev[card.list_id] || []).filter(c => c.id !== card.id),
+      [nextList.id]: [...(prev[nextList.id] || []), { ...card, list_id: nextList.id }],
+    }))
+  }
+
   async function addList(e: React.FormEvent) {
     e.preventDefault()
     if (!newListName.trim()) return
@@ -200,14 +211,16 @@ export default function BoardPage() {
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-4 h-full items-start">
-            {lists.map((list) => (
+            {lists.map((list, listIndex) => (
               <KanbanList
                 key={list.id}
                 list={list}
                 cards={filteredCards[list.id] || []}
                 labels={labels}
+                isLastList={listIndex === lists.length - 1}
                 onAddCard={addCard}
                 onCardClick={setSelectedCard}
+                onAdvanceCard={(card) => advanceCard(card, listIndex)}
               />
             ))}
 

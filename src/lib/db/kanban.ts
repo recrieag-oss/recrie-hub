@@ -2,7 +2,7 @@ import { getSupabase } from '@/lib/supabase/hooks'
 
 const sb = () => getSupabase()
 
-export interface Workspace { id: string; name: string; slug: string; color: string; owner_id: string; created_at: string }
+export interface Workspace { id: string; name: string; slug: string; color: string; logo_url?: string | null; owner_id: string; created_at: string }
 export interface Board { id: string; workspace_id: string; name: string; color: string; position: number; created_at: string }
 export interface List { id: string; board_id: string; name: string; position: number; color: string | null; created_at: string }
 export interface Card { id: string; list_id: string; title: string; description: string | null; position: number; due_date: string | null; cover_url: string | null; archived: boolean; label_ids: string[]; checklist: { id: string; text: string; checked: boolean }[]; attachments: { id: string; name: string; url: string; type: string; size: number; created_at: string }[]; created_by: string | null; created_at: string; updated_at: string }
@@ -27,6 +27,10 @@ export async function createWorkspace(name: string) {
 
 export async function renameWorkspace(id: string, name: string) {
   await sb().from('workspaces').update({ name }).eq('id', id)
+}
+
+export async function updateWorkspace(id: string, updates: { name?: string; color?: string; logo_url?: string | null }) {
+  await sb().from('workspaces').update(updates).eq('id', id)
 }
 
 export async function deleteWorkspace(id: string) {
