@@ -44,25 +44,30 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
   }, [onClose, showLabelPicker])
 
   async function handleSave() {
-    let parsedDueDate: string | null = null
-    if (dueDate) {
-      const d = new Date(dueDate)
-      if (!isNaN(d.getTime())) parsedDueDate = d.toISOString()
-    }
+    try {
+      let parsedDueDate: string | null = null
+      if (dueDate) {
+        const d = new Date(dueDate)
+        if (!isNaN(d.getTime())) parsedDueDate = d.toISOString()
+      }
 
-    const updates: Record<string, unknown> = {
-      title: title.trim() || card.title,
-      description: description.trim() || null,
-      due_date: parsedDueDate,
-      cover_url: coverUrl || null,
-      label_ids: selectedLabelIds,
-      checklist,
-      attachments,
-    }
+      const updates: Record<string, unknown> = {
+        title: title.trim() || card.title,
+        description: description.trim() || null,
+        due_date: parsedDueDate,
+        cover_url: coverUrl || null,
+        label_ids: selectedLabelIds,
+        checklist,
+        attachments,
+      }
 
-    const updated = await store.updateCard(card.id, updates as Partial<typeof card>)
-    if (updated) onUpdate(updated)
-    onClose()
+      const updated = await store.updateCard(card.id, updates as Partial<typeof card>)
+      if (updated) onUpdate(updated)
+      onClose()
+    } catch (err) {
+      console.error('Save failed:', err)
+      alert('Erro ao salvar. Verifique o console para detalhes.')
+    }
   }
 
   async function handleDelete() {

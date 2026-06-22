@@ -88,7 +88,13 @@ export async function createCard(listId: string, title: string) {
 }
 
 export async function updateCard(id: string, updates: Partial<Card>) {
-  const { data } = await sb().from('cards').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+  const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  const fields = ['title', 'description', 'due_date', 'cover_url', 'list_id', 'position', 'archived', 'label_ids', 'checklist', 'attachments'] as const
+  for (const f of fields) {
+    if (f in updates) allowed[f] = (updates as Record<string, unknown>)[f]
+  }
+  const { data, error } = await sb().from('cards').update(allowed).eq('id', id).select().single()
+  if (error) console.error('updateCard error:', error.message)
   return data ? { ...data, label_ids: data.label_ids || [], checklist: data.checklist || [], attachments: data.attachments || [] } : null
 }
 
