@@ -109,32 +109,55 @@ export default function CardModal({ card, boardId, onClose, onUpdate, onDelete }
     setNewLabelName('')
   }
 
-  function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function compressImage(file: File, maxSizeKB = 500): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let { width, height } = img
+        const maxDim = 1200
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim }
+          else { width = Math.round(width * maxDim / height); height = maxDim }
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        let quality = 0.8
+        let result = canvas.toDataURL('image/jpeg', quality)
+        while (result.length > maxSizeKB * 1024 * 1.37 && quality > 0.1) {
+          quality -= 0.1
+          result = canvas.toDataURL('image/jpeg', quality)
+        }
+        resolve(result)
+      }
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
+  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => setCoverUrl(reader.result as string)
-    reader.readAsDataURL(file)
+    const compressed = await compressImage(file)
+    setCoverUrl(compressed)
     e.target.value = ''
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
     if (!files) return
-    Array.from(files).forEach(file => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const att = {
-          id: crypto.randomUUID(),
-          name: file.name,
-          url: reader.result as string,
-          type: file.type,
-          size: file.size,
-          created_at: new Date().toISOString(),
-        }
-        setAttachments(prev => [...prev, att])
+    Array.from(files).forEach(async file => {
+      const url = file.type.startsWith('image/') ? await compressImage(file) : await new Promise<string>(r => { const rd = new FileReader(); rd.onload = () => r(rd.result as string); rd.readAsDataURL(file) })
+      const att = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        url,
+        type: file.type,
+        size: file.size,
+        created_at: new Date().toISOString(),
       }
-      reader.readAsDataURL(file)
+      setAttachments(prev => [...prev, att])
     })
     e.target.value = ''
   }
